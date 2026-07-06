@@ -1,0 +1,273 @@
+{
+  "name": "Generate AI-Powered LinkedIn Posts with Google Gemini and Gen-Imager",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "LinkedIn Post Generator ",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Topic",
+              "placeholder": "Enter prompt here....",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "ab4282b8-43e9-466a-9986-70e5e449eb5e",
+      "name": "On form submission",
+      "type": "n8n-nodes-base.formTrigger",
+      "position": [
+        880,
+        544
+      ],
+      "webhookId": "e06e171b-45cc-4c4f-bbc5-ffedd4d60f47",
+      "typeVersion": 2.2
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "694a158d-53fd-425c-9a42-be4288c17ac9",
+              "name": "chatInput",
+              "type": "string",
+              "value": "={{ $json.Topic }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "e593eb90-b859-499b-8b18-3f8fbe8017da",
+      "name": "Mapper",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        1136,
+        544
+      ],
+      "typeVersion": 3.4
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json.output\n\nconst cleanedInput = input.replace(/```json|```/g, '').trim();\n\n// Parse the cleaned JSON\nconst parsedOutput = JSON.parse(cleanedInput);\n\n// Extract the `post_content.text` and `image_prompt.description` details\nconst postContent = parsedOutput.post_content.text;\nconst imagePrompt = parsedOutput.image_prompt.description;\n\n// Prepare the final output in the desired JSON structure\nreturn {\n  post_content: postContent,\n  image_prompt: imagePrompt\n};"
+      },
+      "id": "8ebd423c-16da-4a44-8c96-07683fe4659f",
+      "name": "Normalizer",
+      "type": "n8n-nodes-base.code",
+      "position": [
+        1760,
+        544
+      ],
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "person": "=",
+        "text": "={{ $('Normalizer').item.json.post_content }}",
+        "shareMediaCategory": "IMAGE",
+        "binaryPropertyName": "=data",
+        "additionalFields": {}
+      },
+      "id": "5feeaf28-1efd-4624-ba09-947133b247ec",
+      "name": "LinkedIn",
+      "type": "n8n-nodes-base.linkedIn",
+      "position": [
+        2224,
+        544
+      ],
+      "typeVersion": 1,
+      "credentials": {
+        "linkedInOAuth2Api": {
+          "id": "IDy6gB0FWDlU1yOX",
+          "name": "LinkedIn OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        1392,
+        736
+      ],
+      "id": "60b7584d-1e54-4680-8ee9-170e25707ee3",
+      "name": "Google Gemini Chat Model1",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "Ne06KUKxifyKL0KY",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Create a professional LinkedIn post and a matching Canva-style educational infographic about:\n\nTopic:\n{{ $json.chatInput }}\n\nRequirements:\n- The LinkedIn post should be engaging, professional, and informative.\n- The infographic should visually summarize the post.\n- Return ONLY the required JSON format.",
+        "options": {
+          "systemMessage": "=You are an AI assistant that generates professional LinkedIn content.\n\nReturn ONLY valid JSON.\n\nDo not add explanations.\nDo not use markdown.\nDo not wrap the response in ```json.\n\nOutput format must be exactly:\n\n{\n  \"post_content\": {\n    \"text\": \"Professional LinkedIn post here\"\n  },\n  \"image_prompt\": {\n    \"description\": \"Professional infographic generation prompt here\"\n  }\n}\n\nRules:\n\n1. The post_content.text must be an engaging, professional LinkedIn post based on the user's topic.\n\n2. The image_prompt.description must generate a LinkedIn infographic, NOT a realistic image.\n\nThe infographic should follow these design rules:\n\n- Portrait orientation (1080×1350)\n- Educational infographic\n- Canva-style layout\n- Flat 2D vector illustrations\n- Bright and clean colors\n- White background\n- Blue primary color with orange and green accents\n- Large bold title at the top\n- Divide the page into 4–6 colorful sections/cards\n- Each section should contain:\n  - A small flat vector illustration\n  - A simple icon\n  - A short heading\n  - 2–3 concise bullet points\n- Modern typography\n- Rounded cards\n- Minimal shadows\n- Corporate LinkedIn style\n- Easy to read\n- High-quality vector artwork\n\nNegative requirements:\n\n- No realistic people\n- No office scene\n- No photography\n- No 3D render\n- No cinematic lighting\n- No dark background\n- No AI art style\n- No anime\n- No unnecessary decorative elements\n\nThe infographic should summarize the LinkedIn post visually in a clean, professional, educational format similar to premium Canva infographic templates."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1392,
+        544
+      ],
+      "id": "ade745fe-9376-440c-aa4c-28c8b3aed4c1",
+      "name": "AI Agent",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ \"linkedin-\" + $execution.id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        1488,
+        736
+      ],
+      "id": "73913bd7-8669-4198-96db-2d783e231114",
+      "name": "Simple Memory",
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.stability.ai/v2beta/stable-image/generate/core",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer sk-Q45ZsJjkY3x1OoYwRYDMixbs3oEIRr7am9kqeWU6xrku5kPN"
+            },
+            {
+              "name": "Accept",
+              "value": "image/*"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "prompt",
+              "value": "={{ $json.image_prompt }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1968,
+        544
+      ],
+      "id": "23f869a9-7647-40d7-a152-adb58bc90b94",
+      "name": "HTTP Request"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Mapper": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalizer": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Mapper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Normalizer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "9158b11f-2b44-4716-86b0-d4a15349d9b8",
+  "meta": {
+    "templateId": "5002",
+    "templateCredsSetupCompleted": true,
+    "instanceId": "fd162af6f0e224c57038ce0bb8213cc075ec7463dbd8e04f9ce1659a4747f4b7"
+  },
+  "nodeGroups": [],
+  "id": "2mUyiCJSK1R1MgLc",
+  "tags": []
+}

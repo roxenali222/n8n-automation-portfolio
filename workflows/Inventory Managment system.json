@@ -1,0 +1,445 @@
+{
+  "name": "My workflow 2",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -16,
+        -64
+      ],
+      "id": "e68bcbb1-78f2-46b1-8df8-9e806f0d087d",
+      "name": "When chat message received",
+      "webhookId": "a3ca5463-bf11-46c8-a167-d25d38247442"
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 15
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        304,
+        112
+      ],
+      "id": "de3ed320-4ffe-4872-b950-5c8ff3be72fb",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "It should be able to search airtable",
+        "operation": "search",
+        "base": {
+          "__rl": true,
+          "value": "appW2Nccgxu7PVzok",
+          "mode": "list",
+          "cachedResultName": "Mobile Accessories Inventory Management",
+          "cachedResultUrl": "https://airtable.com/appW2Nccgxu7PVzok"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblh88PY49Czarsmv",
+          "mode": "list",
+          "cachedResultName": "Accessories",
+          "cachedResultUrl": "https://airtable.com/appW2Nccgxu7PVzok/tblh88PY49Czarsmv"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtableTool",
+      "typeVersion": 2.2,
+      "position": [
+        496,
+        112
+      ],
+      "id": "2e8a5a83-c944-4ebe-a8f5-5b2e90161c0f",
+      "name": "Search records in Airtable",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "LnvEeXLynSwoVZfD",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "base": {
+          "__rl": true,
+          "value": "appW2Nccgxu7PVzok",
+          "mode": "list",
+          "cachedResultName": "Mobile Accessories Inventory Management",
+          "cachedResultUrl": "https://airtable.com/appW2Nccgxu7PVzok"
+        },
+        "table": {
+          "__rl": true,
+          "value": "tblh88PY49Czarsmv",
+          "mode": "list",
+          "cachedResultName": "Accessories",
+          "cachedResultUrl": "https://airtable.com/appW2Nccgxu7PVzok/tblh88PY49Czarsmv"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Unit Price": "={{ $fromAI(\"newprice\",\"update the new price in airtable\",\"number\") }}",
+            "id": "={{ $fromAI(\"RecordID\",\"find the excate id of the item and update it when it required in airtable\") }}",
+            "Current Stock Quantity": "={{ $fromAI(\"NewQuantity\",\"update NewQuantity in airtable\",\"number\") }}"
+          },
+          "matchingColumns": [
+            "id"
+          ],
+          "schema": [
+            {
+              "id": "id",
+              "displayName": "id",
+              "required": false,
+              "defaultMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": true,
+              "removed": false
+            },
+            {
+              "id": "Product Name",
+              "displayName": "Product Name",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "SKU",
+              "displayName": "SKU",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Category",
+              "displayName": "Category",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Cases",
+                  "value": "Cases"
+                },
+                {
+                  "name": "Chargers",
+                  "value": "Chargers"
+                },
+                {
+                  "name": "Cables",
+                  "value": "Cables"
+                },
+                {
+                  "name": "Headphones",
+                  "value": "Headphones"
+                },
+                {
+                  "name": "Screen Protectors",
+                  "value": "Screen Protectors"
+                },
+                {
+                  "name": "Mounts",
+                  "value": "Mounts"
+                },
+                {
+                  "name": "Adapters",
+                  "value": "Adapters"
+                },
+                {
+                  "name": "Other",
+                  "value": "Other"
+                },
+                {
+                  "name": "Electronics",
+                  "value": "Electronics"
+                },
+                {
+                  "name": "Home & Kitchen",
+                  "value": "Home & Kitchen"
+                },
+                {
+                  "name": "Sports & Outdoors",
+                  "value": "Sports & Outdoors"
+                },
+                {
+                  "name": "Home & Office",
+                  "value": "Home & Office"
+                },
+                {
+                  "name": "Stationery",
+                  "value": "Stationery"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Specifications",
+              "displayName": "Specifications",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Unit Price",
+              "displayName": "Unit Price",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Cost",
+              "displayName": "Cost",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Supplier",
+              "displayName": "Supplier",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Reorder Point",
+              "displayName": "Reorder Point",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Current Stock Quantity",
+              "displayName": "Current Stock Quantity",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "Product Image",
+              "displayName": "Product Image",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Status",
+              "displayName": "Status",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "options",
+              "options": [
+                {
+                  "name": "Active",
+                  "value": "Active"
+                },
+                {
+                  "name": "Discontinued",
+                  "value": "Discontinued"
+                },
+                {
+                  "name": "Out of Stock",
+                  "value": "Out of Stock"
+                }
+              ],
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Inventory Movements",
+              "displayName": "Inventory Movements",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "array",
+              "readOnly": false,
+              "removed": true
+            },
+            {
+              "id": "Minimum Quantity ",
+              "displayName": "Minimum Quantity ",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.airtableTool",
+      "typeVersion": 2.2,
+      "position": [
+        464,
+        240
+      ],
+      "id": "bd80b1c6-7ec2-4301-bc1e-aee7b9266425",
+      "name": "Update record in Airtable",
+      "credentials": {
+        "airtableTokenApi": {
+          "id": "LnvEeXLynSwoVZfD",
+          "name": "Airtable Personal Access Token account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "",
+          "cachedResultName": "",
+          "cachedResultUrl": ""
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        80,
+        144
+      ],
+      "id": "be31e8ca-5d2d-4579-8ffc-7f0616328154",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "4aVkOfzo9OCugJY8",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        208,
+        -64
+      ],
+      "id": "5f593749-c660-4d79-9336-8a252eecd71a",
+      "name": "AI Agent"
+    }
+  ],
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search records in Airtable": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update record in Airtable": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "staticData": null,
+  "pinData": {},
+  "triggerCount": 1,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

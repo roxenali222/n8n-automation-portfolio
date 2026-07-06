@@ -1,0 +1,303 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -64,
+        48
+      ],
+      "id": "845d1315-a115-45b3-b6b9-ee0649783006",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Nhc0aMZVq2CCN3WB",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "inputText": "={{ $json.snippet }}",
+        "categories": {
+          "categories": [
+            {
+              "category": "Job or Interview Emails",
+              "description": "Emails related to jobs, interviews, hiring, recruiters, resumes, CVs, applications, or job offers."
+            },
+            {
+              "category": "Client Inquiries",
+              "description": "Emails from potential or existing clients asking about services, projects, pricing, quotations, websites, or design work."
+            },
+            {
+              "category": "Spam or Promotional Emails",
+              "description": "Marketing, advertisements, discounts, promotional offers, newsletters, and sales-related emails."
+            },
+            {
+              "category": "High-Priority or Important Messages",
+              "description": "Urgent emails requiring immediate attention, deadlines, emergency communication, or important updates."
+            },
+            {
+              "category": "General Communication",
+              "description": "Normal conversation emails, greetings, meetings, discussions, and general communication."
+            }
+          ]
+        },
+        "options": {
+          "enableAutoFixing": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.textClassifier",
+      "typeVersion": 1.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "4f81710b-542f-4423-8da3-ab8ddab287dc",
+      "name": "Text Classifier",
+      "alwaysOutputData": false,
+      "notesInFlow": false
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        208,
+        256
+      ],
+      "id": "005aa991-eb01-4af4-ab2c-db79c603afff",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "4aVkOfzo9OCugJY8",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=you act as a copywriter and my personal gmail assissstant, you will reply to this email {{ $('Gmail Trigger').item.json.snippet }}\n"
+            }
+          ]
+        },
+        "simplify": false,
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        736,
+        48
+      ],
+      "id": "8d70472f-7dc7-418a-96ce-70cabdac0a08",
+      "name": "Message a model",
+      "credentials": {
+        "openAiApi": {
+          "id": "4aVkOfzo9OCugJY8",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $('Text Classifier').item.json.Subject }}",
+        "message": "={{ $json.output[0].content[0].text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        1056,
+        48
+      ],
+      "id": "d5602785-a0fe-4969-81d9-00fdcf7181b1",
+      "name": "Create a draft",
+      "webhookId": "e96a3364-ee45-4569-90c6-c27e8b5da4dd",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Nhc0aMZVq2CCN3WB",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "=you act as a copywriter and my personal gmail assissstant, you will reply to this email \n{{ $json.snippet }}"
+            }
+          ]
+        },
+        "simplify": false,
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        560,
+        -128
+      ],
+      "id": "22367331-bd8e-47f3-8260-6d36bc01b1a8",
+      "name": "Message a model1",
+      "credentials": {
+        "openAiApi": {
+          "id": "4aVkOfzo9OCugJY8",
+          "name": "n8n free OpenAI API credits"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $('Gmail Trigger').item.json.Subject }}",
+        "message": "={{ $json.output[0].content[0].text }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.2,
+      "position": [
+        912,
+        -128
+      ],
+      "id": "e8e1cba6-9d01-4427-8b84-cde67da5bd16",
+      "name": "Create a draft1",
+      "webhookId": "29b37e6d-7929-4579-a7fa-920dc8de2ed1",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "Nhc0aMZVq2CCN3WB",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Text Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Text Classifier",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text Classifier": {
+      "main": [
+        [
+          {
+            "node": "Message a model1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [],
+        [],
+        []
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Create a draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model1": {
+      "main": [
+        [
+          {
+            "node": "Create a draft1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": {
+    "node:Gmail Trigger": {
+      "Gmail Trigger": {
+        "lastTimeChecked": 1781591198,
+        "possibleDuplicates": [
+          "19ecf1c4e5d45f9c"
+        ]
+      }
+    }
+  },
+  "pinData": {},
+  "triggerCount": 1,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  }
+}

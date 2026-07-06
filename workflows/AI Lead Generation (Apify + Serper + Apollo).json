@@ -1,0 +1,711 @@
+{
+  "name": "AI Lead Generation (Apify + Serper + Apollo)",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "AI Lead Generation",
+        "formDescription": "Enter a business keyword and location to generate enriched leads",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Keyword",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Location",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Max Items",
+              "fieldType": "number",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "2dc6de5c-54d1-414a-91c6-a97fb433fb56",
+      "name": "Lead Gen Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        -800,
+        0
+      ],
+      "webhookId": "65bb0f3e-9369-4282-9137-a610a8392534"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/compass~crawler-google-places/run-sync-get-dataset-items",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "apifyApi",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ language: \"en\", searchStringsArray: [$json.Keyword + \" in \" + $json.Location], maxCrawledPlacesPerSearch: Number($json[\"Max Items\"]) }) }}",
+        "options": {
+          "timeout": 600000
+        }
+      },
+      "id": "354238c8-7d35-4748-a40f-34c46a6a95f7",
+      "name": "Apify Google Places",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -560,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "d952e373-f296-407a-b809-2f65b9cf8039",
+      "name": "Done",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -80,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.website }}",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          },
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 20000
+        }
+      },
+      "id": "a240a299-59be-4fd7-9464-979a06800714",
+      "name": "Scrape Homepage",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -80,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "url": "={{ ($(\"Loop Over Businesses\").item.json.website || \"\").replace(//$/, \"\") + \"/contact\" }}",
+        "options": {
+          "redirect": {
+            "redirect": {}
+          },
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "text"
+            }
+          },
+          "timeout": 20000
+        }
+      },
+      "id": "60157e34-5530-4059-ba87-c8e010170122",
+      "name": "Scrape Contact Page",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        160,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const biz = $('Loop Over Businesses').item.json;\nconst keyword = $('Lead Gen Form').item.json.Keyword || '';\nconst home = $('Scrape Homepage').item.json.data || '';\nconst contact = $('Scrape Contact Page').item.json.data || '';\n\n// Decode common HTML entities and de-obfuscate emails\nfunction decodeHtml(s) {\n  return String(s)\n    .replace(/&#(\\d+);/g, (_, n) => String.fromCharCode(parseInt(n, 10)))\n    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCharCode(parseInt(n, 16)))\n    .replace(/&amp;/g, '&')\n    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '\"');\n}\nfunction deobfuscate(s) {\n  return String(s)\n    .replace(/\\s*\\[\\s*at\\s*\\]\\s*|\\s*\\(\\s*at\\s*\\)\\s*|\\s+at\\s+/gi, '@')\n    .replace(/\\s*\\[\\s*dot\\s*\\]\\s*|\\s*\\(\\s*dot\\s*\\)\\s*|\\s+dot\\s+/gi, '.');\n}\n\nconst rawHtml = decodeHtml(home + ' ' + contact);\nconst deObHtml = deobfuscate(rawHtml);\n\n// 1) mailto: links first (most reliable)\nconst mailtoRe = /mailto:([^\"'<>\\s?]+)/gi;\nconst mailtoEmails = [];\nlet m;\nwhile ((m = mailtoRe.exec(rawHtml)) !== null) mailtoEmails.push(m[1]);\n\n// 2) plain regex over decoded + de-obfuscated HTML\nconst emailRe = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}/g;\nconst plainEmails = deObHtml.match(emailRe) || [];\n\n// 3) Apify may return biz.emails array or biz.email\nconst apifyEmails = Array.isArray(biz.emails) ? biz.emails : (biz.email ? [biz.email] : []);\n\nconst allEmails = [...apifyEmails, ...mailtoEmails, ...plainEmails]\n  .map(e => String(e).trim().toLowerCase())\n  .filter(e => /^[a-z0-9._%+-]+@[a-z0-9.-]+\\.[a-z]{2,}$/i.test(e))\n  .filter(e => !/\\.(png|jpg|jpeg|gif|svg|webp|css|js|woff2?|ttf)$/i.test(e))\n  .filter(e => !/^(sentry|wixpress|wix|noreply|no-reply|donotreply|example|test|user)@/i.test(e))\n  .filter(e => !/@(sentry\\.io|wixpress\\.com|example\\.com|test\\.com|domain\\.com|email\\.com)$/i.test(e));\n\n// Prefer role-based mailbox if present (info@, contact@, hello@, office@)\nconst rolePriority = /^(info|contact|hello|office|admin|reception|enquiries?|inquiries|sales|support)@/i;\nallEmails.sort((a, b) => (rolePriority.test(b) ? 1 : 0) - (rolePriority.test(a) ? 1 : 0));\nconst companyEmail = [...new Set(allEmails)][0] || '';\n\n// Phone extraction \u2014 prefer Apify's parsed phone; strict fallback\nlet companyPhone = (biz.phone || '').toString().trim();\nif (!companyPhone) {\n  const strictPhoneRe = /(?:(?:\\+\\d{1,3}[\\s.-]?)?(?:\\(\\d{2,4}\\)[\\s.-]?|\\d{2,4}[\\s.-])\\d{2,4}[\\s.-]?\\d{2,4}(?:[\\s.-]?\\d{2,4})?)/g;\n  const candidates = rawHtml.match(strictPhoneRe) || [];\n  const cleaned = candidates.map(s => s.trim()).filter(s => {\n    const digits = s.replace(/\\D/g, '');\n    if (digits.length < 8 || digits.length > 15) return false;\n    if (/^\\d{4}-\\d{2}-\\d{2}$/.test(s)) return false;\n    if (/^\\d{10,}$/.test(s)) return false;\n    return true;\n  });\n  companyPhone = cleaned[0] || '';\n}\n\nreturn { json: {\n  businessName: biz.title,\n  website: biz.website,\n  businessCategory: biz.categoryName,\n  address: biz.address,\n  googleMapsUrl: biz.url,\n  placeId: biz.placeId,\n  apifyPhone: biz.phone || '',\n  companyEmail,\n  companyPhone,\n  keyword,\n  city: biz.city || '',\n  state: biz.state || '',\n  postalCode: biz.postalCode || '',\n  country: biz.countryCode || biz.country || '',\n  reviews: biz.reviewsCount || biz.totalScore || '',\n  scrapedAt: new Date().toISOString()\n} };"
+      },
+      "id": "3a0f0fbc-b4ca-4442-958e-8203b4042ef4",
+      "name": "Extract Company Email & Phone",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://serpapi.com/search.json",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "serpApi",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "engine",
+              "value": "google"
+            },
+            {
+              "name": "q",
+              "value": "={{ 'site:linkedin.com/in \"' + $json.businessName + '\" (CEO OR Founder OR Owner OR President)' }}"
+            },
+            {
+              "name": "num",
+              "value": "5"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 20000
+        }
+      },
+      "id": "6cea5f14-072c-4395-bf48-de052caefbfd",
+      "name": "Serper CEO Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        640,
+        0
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const prev = $('Extract Company Email & Phone').item.json;\nconst results = ($json.organic_results || $json.organic || []);\nlet ceoName = '';\nlet ceoLinkedIn = '';\nfor (const r of results) {\n  const link = (r.link || '').split('?')[0];\n  if (/linkedin\\.com\\/in\\//i.test(link)) {\n    ceoLinkedIn = link;\n    const raw = (r.title || '').split(' | ')[0];\n    const parts = raw.split(' - ');\n    ceoName = (parts[0] || '').replace(/\\s+/g, ' ').trim();\n    break;\n  }\n}\nreturn { json: { ...prev, ceoName, ceoLinkedIn } };"
+      },
+      "id": "2aeeaae3-85cd-4800-adae-b09a62516a5f",
+      "name": "Extract CEO Name & LinkedIn",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        880,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "combinator": "and",
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.ceoLinkedIn }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "034d625f-ece2-4668-8aea-6dddcefca92e",
+      "name": "Has CEO LinkedIn?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        1120,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apollo.io/api/v1/people/match",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Cache-Control",
+              "value": "no-cache"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ name: $json.ceoName, organization_name: $json.businessName, linkedin_url: $json.ceoLinkedIn, reveal_personal_emails: true, reveal_phone_number: true }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "48a6b503-553a-4689-803c-aa4bccb84dd5",
+      "name": "Apollo Enrich CEO",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1360,
+        -128
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const prev = $('Extract CEO Name & LinkedIn').item.json;\nconst person = $json.person || {};\nconst matched = $json.matched_person || {};\nconst p = Object.keys(person).length ? person : matched;\nconst workEmail = p.email || p.work_email || '';\nconst personalEmail = (p.personal_emails && p.personal_emails[0]) || '';\nconst phones = p.phone_numbers || [];\nconst mobile = phones.find(x => /mobile|personal/i.test(x.type || '')) || phones[0] || {};\nconst phone = mobile.sanitized_number || mobile.raw_number || p.sanitized_phone || p.mobile_phone || p.phone || '';\nreturn { json: { ...prev, ceoWorkEmail: workEmail, ceoPersonalEmail: personalEmail, ceoPhone: phone } };"
+      },
+      "id": "d2fb03cb-bd7d-44e6-a4e5-c7bbf8d663a4",
+      "name": "Merge CEO Contact",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1600,
+        -128
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "18aUXtrPJv40iKFmmTQ4xu04nmtWbnrLaC2rNSjB1VXE",
+          "mode": "list",
+          "cachedResultName": "Untitled spreadsheet",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/18aUXtrPJv40iKFmmTQ4xu04nmtWbnrLaC2rNSjB1VXE/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet10",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/18aUXtrPJv40iKFmmTQ4xu04nmtWbnrLaC2rNSjB1VXE/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "businessName": "={{ $json.businessName }}",
+            "ceoName": "={{ $json.ceoName }}",
+            "ceoLinkedIn": "={{ $json.ceoLinkedIn }}",
+            "ceoPhone": "={{ $json.ceoPhone }}",
+            "keyword": "={{ $json.keyword }}",
+            "website ": "={{ $json.website }}",
+            "companyPhone ": "={{ $json.companyPhone }}",
+            "businessCategory ": "={{ $json.businessCategory }}",
+            "address ": "={{ $json.address }}",
+            "city ": "={{ $json.city }}",
+            "state ": "={{ $json.state }}",
+            "postalCode ": "={{ $json.postalCode }}",
+            "country ": "={{ $json.country }}",
+            "reviews ": "={{ $json.reviews }}",
+            "scrapedAt ": "={{ $json.scrapedAt }}",
+            "companyEmail": "={{ $json.companyEmail }}",
+            "ceoWorkEmail ": "={{ $json.ceoWorkEmail }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "keyword",
+              "displayName": "keyword",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "businessName",
+              "displayName": "businessName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "website ",
+              "displayName": "website ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "companyPhone ",
+              "displayName": "companyPhone ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "businessCategory ",
+              "displayName": "businessCategory ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "address ",
+              "displayName": "address ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "city ",
+              "displayName": "city ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "state ",
+              "displayName": "state ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "postalCode ",
+              "displayName": "postalCode ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "country ",
+              "displayName": "country ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "reviews ",
+              "displayName": "reviews ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "scrapedAt ",
+              "displayName": "scrapedAt ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "companyEmail",
+              "displayName": "companyEmail",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ceoName",
+              "displayName": "ceoName",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ceoLinkedIn",
+              "displayName": "ceoLinkedIn",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "ceoWorkEmail ",
+              "displayName": "ceoWorkEmail ",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "ceoPhone",
+              "displayName": "ceoPhone",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "cellFormat": "RAW",
+          "locationDefine": {
+            "values": {}
+          }
+        }
+      },
+      "id": "7ee41a13-49b5-45e5-9aa8-fafa0288ea30",
+      "name": "Save to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1840,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "70dd152b-79c7-4c0e-a1af-7618a2ab6e22",
+      "name": "Loop Over Businesses",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -304,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: { ...$json, ceoWorkEmail: '', ceoPersonalEmail: '', ceoPhone: '' } };"
+      },
+      "id": "9db87234-a46b-459e-9e48-973baf973d88",
+      "name": "No LinkedIn Empty CEO Contact",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1360,
+        128
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Lead Gen Form": {
+      "main": [
+        [
+          {
+            "node": "Apify Google Places",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apify Google Places": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Businesses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Homepage": {
+      "main": [
+        [
+          {
+            "node": "Scrape Contact Page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Scrape Contact Page": {
+      "main": [
+        [
+          {
+            "node": "Extract Company Email & Phone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Company Email & Phone": {
+      "main": [
+        [
+          {
+            "node": "Serper CEO Search",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Serper CEO Search": {
+      "main": [
+        [
+          {
+            "node": "Extract CEO Name & LinkedIn",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract CEO Name & LinkedIn": {
+      "main": [
+        [
+          {
+            "node": "Has CEO LinkedIn?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has CEO LinkedIn?": {
+      "main": [
+        [
+          {
+            "node": "Apollo Enrich CEO",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No LinkedIn Empty CEO Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apollo Enrich CEO": {
+      "main": [
+        [
+          {
+            "node": "Merge CEO Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge CEO Contact": {
+      "main": [
+        [
+          {
+            "node": "Save to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Save to Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Businesses",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Businesses": {
+      "main": [
+        [
+          {
+            "node": "Done",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Scrape Homepage",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No LinkedIn Empty CEO Contact": {
+      "main": [
+        [
+          {
+            "node": "Save to Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "10d5771e-e128-4d2b-89c3-328e9bcc41d8",
+  "meta": {
+    "aiBuilderAssisted": true,
+    "builderVariant": "mcp",
+    "instanceId": "fd162af6f0e224c57038ce0bb8213cc075ec7463dbd8e04f9ce1659a4747f4b7"
+  },
+  "nodeGroups": [],
+  "id": "WonWfrid8H1QpGzh",
+  "tags": []
+}
